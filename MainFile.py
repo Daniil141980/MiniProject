@@ -61,7 +61,10 @@ class MapParams:
             toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
             toponym_coodrinates = toponym["Point"]["pos"]
             self.lon, self.lat = map(float, toponym_coodrinates.split())
-            self.point = f'{self.lon},{self.lat},pm2rdl'
+            if not self.point:
+                self.point = f'{self.lon},{self.lat},pm2rdl'
+            else:
+                self.point += f'~{self.lon},{self.lat},pm2rdl'
 
 
 def main():
