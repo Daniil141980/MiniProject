@@ -1,3 +1,4 @@
+from Button import Button
 from showMap import load_map
 import pygame
 import os
@@ -17,7 +18,7 @@ class MapParams:
         self.lon = 37.664777
         self.zoom = 15
         self.map_type = MAP_TYPES[0]
-        self.point = None
+        self.point = ''
 
     def update(self, event):
         lonstep = self.get_lon_step()
@@ -48,23 +49,32 @@ class MapParams:
         return LAT_STEP * (2 ** (15 - self.zoom))
 
     def get_search_params(self):
-        if not self.point:
+        if self.point == '':
             return f'll={self.lon},{self.lat}&z={self.zoom}&l={self.map_type}'
         elif self.point:
             return f'll={self.lon},{self.lat}&z={self.zoom}&l={self.map_type}&pt={self.point}'
 
     def find_something(self, geocode):
-        geocoder_request = f"http://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&geocode={geocode}&format=json"
+        geocoder_request = f"http://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba" \
+                           f"-98533de7710b&geocode={geocode}&format=json"
         response = requests.get(geocoder_request)
         if response:
             json_response = response.json()
-            toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+            toponym = json_response["response"] \
+                ["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
             toponym_coodrinates = toponym["Point"]["pos"]
             self.lon, self.lat = map(float, toponym_coodrinates.split())
-            if not self.point:
+            if self.point == '':
                 self.point = f'{self.lon},{self.lat},pm2rdl'
             else:
                 self.point += f'~{self.lon},{self.lat},pm2rdl'
+
+    def del_last_point(self):
+        if self.point != '':
+            if '~' in self.point:
+                self.point = '~'.join(self.point.split('~')[:-1])
+            else:
+                self.point = ''
 
 
 def main():
@@ -72,6 +82,10 @@ def main():
     screen = pygame.display.set_mode((600, 500))
     map_object = MapParams()
     map_file = None
+    btn = Button(50, 50, 550, 450, '')
+    click = False
+    f = pygame.font.Font(None, 36)
+    text = f.render('Del', True, (180, 0, 0))
     while True:
         event = pygame.event.wait()
         if event.type == pygame.QUIT:
@@ -83,13 +97,20 @@ def main():
                 if event.key == pygame.K_RETURN:
                     map_object.find_something(input_box.text)
                     input_box.text = ''
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            click = True
         input_box.handle_event(event)
         screen.fill('black')
+        delete_point = btn.draw(screen, click)
+        if delete_point:
+            map_object.del_last_point()
         map_file = load_map(map_object.get_search_params())
         screen.blit(pygame.image.load(map_file), (0, 0))
         input_box.update()
         input_box.draw(screen)
+        screen.blit(text, (555, 465))
         pygame.display.flip()
+        click = False
     pygame.quit()
     os.remove(map_file)
 
